@@ -36,6 +36,7 @@ def load_assets(path="data/assets.csv"):
     return pd.read_csv(path)
 
 
+# you cant add a percentage to a star rating, so everything goes on the same 0 to 1 scale first
 def normalise(series):
     """Rescale a column onto 0 to 1, so a return percentage and a star rating
     can be compared against each other."""
@@ -48,7 +49,7 @@ def normalise(series):
 def score_assets(df, weights):
     df["n_return"] = normalise(df["expected_return_pct"])
     df["n_impact"] = normalise(df["impact_score"])
-    # risk has to be flipped into safety, otherwise the riskiest asset scores best
+    # risk gets flipped, otherwise the riskiest asset comes out best, which is backwards
     df["n_safety"] = 1 - normalise(df["risk_stars"])
 
     df["score"] = (
