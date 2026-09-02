@@ -1,9 +1,10 @@
 """
-Splits an investment across a list of assets, based on the scenario you choose.
+Decides how to split money across a list of investments, based on what you tell it
+to care about most.
 
-Every asset has a risk rating out of 5, an expected return, and an impact score
-for sustainability. Nothing wins on all three, so the scenario decides which
-one matters most.
+Every investment has three things: how risky it is (1 to 5 stars), how much it is
+expected to earn, and how good it is for the environment (1 to 5). Nothing is best
+at all three, so you have to choose what matters most. That is what the scenario does.
 
 Run it with: python3 allocate.py cautious
              python3 allocate.py growth
@@ -17,7 +18,8 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 
 
-# each scenario's three weights add up to 1
+# each scenario says what to care about most. the three numbers always add up to 1,
+# so cautious spends 60% of its attention on staying safe and growth spends 65% on earning
 SCENARIOS = {
     "cautious":    {"return": 0.25, "impact": 0.15, "safety": 0.60,
                     "max_risk": 2.5, "note": "protect the money first"},
@@ -29,17 +31,18 @@ SCENARIOS = {
                     "max_risk": 3.5, "note": "sustainability weighted heaviest"},
 }
 
-MAX_WEIGHT = 0.25   # no single asset takes more than a quarter of the money
+MAX_WEIGHT = 0.25   # no single investment gets more than a quarter of the money,
+                    # so it never puts everything in one place
 
 
 def load_assets(path="data/assets.csv"):
     return pd.read_csv(path)
 
 
-# you cant add a percentage to a star rating, so everything goes on the same 0 to 1 scale first
+# you cant add a percentage to a star rating. it is like adding your height to your
+# shoe size, and the bigger number wins just for being bigger. so everything is put
+# onto the same 0 to 1 scale first, where 0 is the lowest and 1 is the highest
 def normalise(series):
-    """Rescale a column onto 0 to 1, so a return percentage and a star rating
-    can be compared against each other."""
     lo, hi = series.min(), series.max()
     if hi == lo:
         return series * 0 + 0.5
@@ -49,7 +52,9 @@ def normalise(series):
 def score_assets(df, weights):
     df["n_return"] = normalise(df["expected_return_pct"])
     df["n_impact"] = normalise(df["impact_score"])
-    # risk gets flipped, otherwise the riskiest asset comes out best, which is backwards
+    # a high return is good and a high impact score is good, but a high risk is bad.
+    # so risk gets turned round here. without this the program would think the most
+    # dangerous investment was the best one
     df["n_safety"] = 1 - normalise(df["risk_stars"])
 
     df["score"] = (
@@ -61,8 +66,7 @@ def score_assets(df, weights):
 
 
 def allocate(df, max_risk):
-    """Turn scores into percentages, keeping the portfolio diversified and
-    under the scenario's risk ceiling."""
+    """Turn the scores into percentages of the money, spread out and not too risky."""
     working = df.copy()
 
     while True:
@@ -74,8 +78,9 @@ def allocate(df, max_risk):
         if avg_risk <= max_risk or len(working) <= 3:
             break
 
-        # still too risky, so drop the riskiest asset and work it out again.
-        # scaling everything down would not help - the mix would stay the same
+        # the whole portfolio is still too risky, so take out the riskiest investment
+        # and work it all out again. just making everything smaller would not help,
+        # because the mix would stay exactly the same
         working = working.drop(working["risk_stars"].idxmax())
 
     return working
